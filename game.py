@@ -13,7 +13,7 @@ ventana = pygame.display.set_mode((ANCHO, ALTO))
 pygame.display.set_caption("Street Racing")
 
 # Colores
-NEGRO = (0, 0, 0)
+NEGRO = (0, 0, 0) 
 BLANCO = (255, 255, 255)
 ROJO = (255, 0, 0)
 AZUL = (0, 0, 255)
@@ -89,26 +89,24 @@ class Auto:
         
         # Solo dibujar si el auto está en la pantalla
         if -self.ancho <= x_pantalla <= ANCHO:
-            # Dibujar sombra
-            pygame.draw.ellipse(ventana, (50, 50, 50), 
-                              (x_pantalla + 10, self.y + self.alto - 5, self.ancho - 20, 10))
-            
-            # Dibujar cuerpo principal del auto
-            pygame.draw.rect(ventana, self.color, (x_pantalla, self.y, self.ancho, self.alto))
-            
-            # Detalles del auto
-            pygame.draw.rect(ventana, NEGRO, 
-                           (x_pantalla + self.ancho - 20, self.y + 5, 15, self.alto - 10))  # Ventana
-            pygame.draw.rect(ventana, NEGRO, 
-                           (x_pantalla + 5, self.y, 10, self.alto))  # Frente
-            
-            # Efecto de nitro para el jugador
+            # Sombra
+            pygame.draw.ellipse(ventana, (30, 30, 30), (x_pantalla + 10, self.y + self.alto - 5, self.ancho - 20, 10))
+            # Cuerpo
+            pygame.draw.rect(ventana, self.color, (x_pantalla, self.y, self.ancho, self.alto), border_radius=10)
+            # Ventana
+            pygame.draw.rect(ventana, (180, 220, 255), (x_pantalla + 15, self.y + 8, self.ancho - 30, self.alto - 16), border_radius=5)
+            # Ruedas
+            pygame.draw.circle(ventana, NEGRO, (int(x_pantalla + 15), int(self.y + self.alto)), 8)
+            pygame.draw.circle(ventana, NEGRO, (int(x_pantalla + self.ancho - 15), int(self.y + self.alto)), 8)
+            # Luces delanteras
+            pygame.draw.circle(ventana, (255, 255, 100), (int(x_pantalla + self.ancho), int(self.y + 10)), 4)
+            pygame.draw.circle(ventana, (255, 255, 100), (int(x_pantalla + self.ancho), int(self.y + self.alto - 10)), 4)
+            # Nitro (igual que antes)
             if self.es_jugador and self.usando_nitro:
                 for _ in range(3):
                     x_offset = random.randint(-20, -10)
                     y_offset = random.randint(-5, 5)
-                    pygame.draw.circle(ventana, AMARILLO, 
-                                     (int(x_pantalla + x_offset), int(self.y + self.alto//2 + y_offset)), 3)
+                    pygame.draw.circle(ventana, AMARILLO, (int(x_pantalla + x_offset), int(self.y + self.alto//2 + y_offset)), 3)
         
         # Barra de nitro para el jugador (siempre en posición fija en la pantalla)
         if self.es_jugador:
@@ -125,7 +123,8 @@ class Juego:
         self.meta = ANCHO * 3  # Meta más lejana
         self.jugando = True
         self.ganador = None
-        self.fuente = pygame.font.Font(None, 36)
+        self.fuente = pygame.font.SysFont("consolas", 36, bold=True)
+        self.fuente_grande = pygame.font.SysFont("consolas", 48, bold=True)
         self.camara_x = 0  # Posición de la cámara
         self.tiempo_inicio = pygame.time.get_ticks()
         self.mejor_tiempo = float('inf')
@@ -148,66 +147,82 @@ class Juego:
                 self.ganador = "¡Perdiste!"
 
     def dibujar(self):
-        ventana.fill(NEGRO)
+        self.dibujar_fondo()
+        self.dibujar_carretera(self.camara_x)
         
         # Actualizar posición de la cámara para seguir al jugador suavemente
-        objetivo_x = self.jugador.x - ANCHO//4  # Mantener el jugador en el primer cuarto de la pantalla
-        self.camara_x += (objetivo_x - self.camara_x) * 0.1  # Suavizado del movimiento
-        
-        # Dibujar efecto de carretera
-        segmento_ancho = 200
-        inicio_segmento = int(self.camara_x // segmento_ancho) - 1
-        fin_segmento = inicio_segmento + (ANCHO // segmento_ancho) + 3
-        
-        for i in range(inicio_segmento, fin_segmento):
-            x = i * segmento_ancho - self.camara_x
-            for j in range(CARRILES + 1):
-                y = j * ALTURA_CARRIL
-                pygame.draw.line(ventana, BLANCO, (x, y), (x + 100, y), 3)
-        
-        # Dibujar meta
+        objetivo_x = self.jugador.x - ANCHO//4
+        self.camara_x += (objetivo_x - self.camara_x) * 0.1
+
+        # Dibujar meta animada
         x_meta = self.meta - self.camara_x
         if 0 <= x_meta <= ANCHO:
-            pygame.draw.line(ventana, BLANCO, (x_meta, 0), (x_meta, ALTO), 5)
-            meta_texto = self.fuente.render("META", True, BLANCO)
-            ventana.blit(meta_texto, (x_meta - 30, 10))
-        
+            color_meta = BLANCO if (pygame.time.get_ticks() // 300) % 2 == 0 else AMARILLO
+            pygame.draw.line(ventana, color_meta, (x_meta, 0), (x_meta, ALTO), 8)
+            meta_texto = self.fuente_grande.render("META", True, color_meta)
+            ventana.blit(meta_texto, (x_meta - 60, 10))
+
         # Dibujar autos con offset de cámara
         self.jugador.dibujar(self.camara_x)
         for competidor in self.competidores:
             competidor.dibujar(self.camara_x)
 
-        # Mostrar información (siempre en posición fija en la pantalla)
+        # Mostrar información (HUD)
         if self.jugando:
-            # Mostrar velocidad
             vel_texto = self.fuente.render(f"Velocidad: {int(self.jugador.velocidad * 10)} km/h", True, BLANCO)
             ventana.blit(vel_texto, (10, 10))
-            
-            # Mostrar tiempo
             tiempo_actual = (pygame.time.get_ticks() - self.tiempo_inicio) / 1000
             tiempo_texto = self.fuente.render(f"Tiempo: {tiempo_actual:.1f}s", True, BLANCO)
-            ventana.blit(tiempo_texto, (ANCHO - 200, 10))
-            
-            # Mostrar controles
+            ventana.blit(tiempo_texto, (ANCHO - 250, 10))
             controles = self.fuente.render("SHIFT para NITRO", True, AMARILLO)
             ventana.blit(controles, (10, 80))
-            
-            # Mostrar score
             score_texto = self.fuente.render(f"Score: {self.jugador.score}", True, BLANCO)
             ventana.blit(score_texto, (10, 120))
-            
-            # Mostrar distancia a la meta
             distancia = max(0, int((self.meta - self.jugador.x) / 10))
             dist_texto = self.fuente.render(f"Distancia a meta: {distancia}m", True, BLANCO)
-            ventana.blit(dist_texto, (ANCHO - 200, 40))
+            ventana.blit(dist_texto, (ANCHO - 250, 40))
         else:
-            texto = self.fuente.render(self.ganador, True, BLANCO)
-            ventana.blit(texto, (ANCHO//2 - 150, ALTO//2))
+            texto = self.fuente_grande.render(self.ganador, True, BLANCO)
+            ventana.blit(texto, (ANCHO//2 - 200, ALTO//2 - 40))
             if self.mejor_tiempo < float('inf'):
                 mejor_tiempo_texto = self.fuente.render(f"Mejor tiempo: {self.mejor_tiempo:.1f}s", True, BLANCO)
-                ventana.blit(mejor_tiempo_texto, (ANCHO//2 - 150, ALTO//2 + 40))
-            reiniciar_texto = self.fuente.render("Presiona ESPACIO para reiniciar", True, BLANCO)
-            ventana.blit(reiniciar_texto, (ANCHO//2 - 150, ALTO//2 + 80))
+                ventana.blit(mejor_tiempo_texto, (ANCHO//2 - 150, ALTO//2 + 20))
+            reiniciar_texto = self.fuente_grande.render("Presiona ESPACIO para reiniciar", True, AMARILLO)
+            ventana.blit(reiniciar_texto, (ANCHO//2 - 320, ALTO//2 + 80))
+
+    def dibujar_fondo(self):
+        # Degradado de cielo a suelo
+        for y in range(ALTO):
+            if y < ALTO // 2:
+                # Cielo azul degradado
+                color = (
+                    int(60 + 80 * (y / (ALTO//2))),
+                    int(120 + 100 * (y / (ALTO//2))),
+                    int(200 + 55 * (y / (ALTO//2)))
+                )
+            else:
+                # Suelo marrón degradado
+                color = (
+                    int(80 + 60 * ((y-ALTO//2) / (ALTO//2))),
+                    int(60 + 40 * ((y-ALTO//2) / (ALTO//2))),
+                    int(40 + 20 * ((y-ALTO//2) / (ALTO//2)))
+                )
+            pygame.draw.line(ventana, color, (0, y), (ANCHO, y))
+
+    def dibujar_carretera(self, camara_x):
+        carretera_y = 0
+        carretera_h = ALTO
+        carretera_x = 0
+        carretera_w = ANCHO
+        pygame.draw.rect(ventana, (60, 60, 60), (carretera_x, carretera_y, carretera_w, carretera_h))
+        # Líneas centrales discontinuas
+        for i in range(0, ANCHO*3, 60):
+            x = i - camara_x
+            if -30 <= x <= ANCHO:
+                pygame.draw.rect(ventana, BLANCO, (x, ALTO//2 - 7, 30, 14), border_radius=7)
+        # Bordes de la carretera
+        pygame.draw.rect(ventana, (200, 200, 200), (0, 0, 10, ALTO))
+        pygame.draw.rect(ventana, (200, 200, 200), (ANCHO-10, 0, 10, ALTO))
 
 def main():
     reloj = pygame.time.Clock()
